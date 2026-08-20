@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserResponse
+from app.schemas.auth import LoginRequest, TokenResponse
 from app.services.auth_service import AuthService
 
 
@@ -44,3 +45,21 @@ def register(user_data: UserCreate, db: Session = Depends(get_db), ):
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
         )
+
+@router.post("/login", response_model=TokenResponse,)
+def login(credentials: LoginRequest, db: Session = Depends(get_db),):
+    repository = UserRepository(db)
+    service = AuthService(repository)
+    
+    user = service.authenticate(
+        email= credentials.email,
+        password=credentials.password,
+    )
+    
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
+        
+    return service.create_tokens(user)
